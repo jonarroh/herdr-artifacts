@@ -3,6 +3,8 @@ name = "herdr-artifacts"
 version = "0.1.0"
 edition = "2024"
 description = "Visual, interactive artifacts for Herdr agents, rendered natively in the terminal"
+license = "MIT"
+repository = "https://github.com/jonarroh/herdr-artifacts"
 
 [lib]
 name = "herdr_artifacts"

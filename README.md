@@ -225,3 +225,7 @@ Publica un artifact de cada tipo usando los fixtures de `tests/fixtures/` y espe
 - **Botón Copy solo por teclado**: no se captura el ratón, para no interferir con la selección de texto de Herdr.
 - **Sin resaltado de sintaxis** en `code` (fuera del alcance del MVP).
 - **Un visor principal por directorio de estado**: un segundo panel funciona en modo secundario (lee del disco cada segundo, sin recibir IPC).
+
+## Licencia
+
+[MIT](LICENSE)
