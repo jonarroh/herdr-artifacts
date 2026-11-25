@@ -1,8 +1,10 @@
 # Herdr Artifacts
 
-Plugin para [Herdr](https://herdr.dev) que da a los agentes una superficie visual dentro de la terminal: códigos QR, imágenes, mensajes, Markdown, tablas, gráficas y código, con acciones interactivas cuya respuesta vuelve al agente.
+Plugin para [Herdr](https://herdr.dev) que da a los agentes una superficie visual en una **ventana nativa**: códigos QR, imágenes, mensajes, Markdown, tablas, gráficas y código, con acciones interactivas cuya respuesta vuelve al agente.
 
-Todo se dibuja en la terminal con Rust y Ratatui. No hay WebView, navegador, servidor web ni runtime de JavaScript.
+La ventana es del sistema operativo (egui sobre OpenGL), flota encima de la terminal y pide las confirmaciones con el **diálogo nativo** del sistema. No hay WebView, navegador, servidor web ni runtime de JavaScript. El visor dentro de la terminal (Ratatui) sigue disponible si lo pides.
+
+Así se ve el visor de terminal opcional:
 
 ```text
  HERDR ARTIFACTS   project my-project  agent claude  ● listening  8 artifacts  img halfblocks
@@ -23,8 +25,9 @@ Todo se dibuja en la terminal con Rust y Ratatui. No hay WebView, navegador, ser
 
 ## Requisitos
 
-- Rust 1.88 o posterior (probado con 1.91.1).
+- Rust 1.95 o posterior (probado con 1.97.0).
 - Herdr 0.9.4 o posterior (probado con `0.9.4-preview.2026-10-14`).
+- OpenGL 2.0 o posterior para la ventana nativa.
 - Windows, Linux o macOS. Desarrollado y verificado en Windows 11; en Linux y macOS compila el mismo código, pero no se ha ejecutado allí (ver [limitaciones](#limitaciones-conocidas)).
 
 ## Compilar e instalar
@@ -32,9 +35,11 @@ Todo se dibuja en la terminal con Rust y Ratatui. No hay WebView, navegador, ser
 ```sh
 git clone https://github.com/jonarroh/herdr-artifacts.git
 cd herdr-artifacts
-cargo build --release          # binario único en target/release/ (~2 MB)
-cargo test                     # 92 pruebas
+cargo build --release          # binario único en target/release/
+cargo test
 ```
+
+En Windows sin las C++ Build Tools de Visual Studio sirve la toolchain GNU con MinGW-w64 en el `PATH`: `cargo +stable-x86_64-pc-windows-gnu build --release` (ejecútalo desde PowerShell o cmd).
 
 Para que los agentes encuentren el CLI desde cualquier pane, ponlo en el `PATH`:
 
@@ -52,24 +57,23 @@ herdr plugin link /ruta/a/herdr-artifacts
 
 Para retirarlo: `herdr plugin unlink local.herdr-artifacts`.
 
-### Abrir el panel
-
-Desde la línea de comandos:
+### Abrir la ventana
 
 ```sh
-# Linux / macOS
-herdr plugin pane open --plugin local.herdr-artifacts --entrypoint dashboard --focus
-# Windows
-herdr plugin pane open --plugin local.herdr-artifacts --entrypoint dashboard-windows --focus
+herdr-artifacts open
 ```
 
-Por defecto se abre como **popup**: una ventana emergente al 90 % sobre el layout actual, que se cierra con `q` o `Esc`. Con `--placement split`, `tab`, `zoomed` u `overlay` se abre como pane normal.
+Abre la ventana nativa, o trae al frente la que ya está abierta. La ventana sigue viva aunque cierres el pane que la abrió, y se cierra con `q`, `Esc` o la X de la barra de título.
 
-Un agente puede hacer que el popup aparezca al publicar, si el visor no está ya abierto:
+Un agente puede hacer que aparezca al publicar. Si ya estaba abierta, viene al frente mostrando ese artifact:
 
 ```sh
 herdr-artifacts publish qr --data "exp://192.168.1.100:8081" --show
 ```
+
+Sin `--show`, una ventana abierta muestra el artifact nuevo y solo parpadea en la barra de tareas, sin robar el foco.
+
+Si prefieres el visor dentro de la terminal, `open --placement split|tab|zoomed|overlay` abre un pane de Herdr (y `herdr-artifacts tui` lo ejecuta en la terminal actual). Solo puede haber un visor a la vez recibiendo publicaciones: cierra el de terminal antes de usar la ventana.
 
 Con un atajo de teclado, añadiendo a `config.toml` de Herdr (usa `open-windows` en Windows):
 
@@ -148,14 +152,30 @@ Formato de `--action`: `id:etiqueta[:tipo[:url]]`. Un `!` tras el id exige confi
 
 | Comando | Qué hace |
 | --- | --- |
-| `herdr-artifacts` / `tui` | Abre el visor |
+| `herdr-artifacts` / `window` | Ejecuta la ventana nativa en este proceso |
+| `tui` | Visor dentro de la terminal |
 | `list [--json]` | Lista los artifacts guardados |
 | `show <id>` | Imprime un artifact completo en JSON |
 | `events [--follow] [--artifact ID]` | Eventos del usuario |
 | `doctor` | Rutas, límites, estado del IPC y capacidades del terminal |
-| `open [--placement …]` | Pide a Herdr que abra el panel |
+| `open [--placement …]` | Abre la ventana nativa (o un pane de Herdr) |
 
-## Teclado
+## Ventana nativa
+
+La ventana **cambia de tamaño según el artifact** (un aviso corto abre una ventana pequeña; código, tablas, imágenes o informes, una más grande) y sigue el tema claro u oscuro del sistema. Puedes redimensionarla a mano: solo vuelve a ajustarse al pasar a otro artifact o si su contenido cambia mucho.
+
+Las acciones son botones al pie; la primera respuesta aparece resaltada. Con más de un artifact, el botón `☰` (o `H`) abre el historial; se pone en color de aviso si hay otros esperando respuesta. **Delete**, `open_url`, `dismiss` y las acciones con `!` abren un diálogo Sí/No del sistema. Si el agente cambia o elimina el artifact mientras el diálogo está abierto, la respuesta se ignora.
+
+| Tecla | Acción |
+| --- | --- |
+| `↓` `j` / `↑` `k` | Artifact siguiente / anterior |
+| `1`–`9` | Ejecutar una acción |
+| `c` | Copiar el texto |
+| `h` | Mostrar u ocultar el historial |
+| `d` / `Supr` | Borrar, con confirmación |
+| `q` / `Esc` | Cerrar la ventana |
+
+## Teclado del visor de terminal
 
 | Tecla | Acción |
 | --- | --- |
@@ -224,6 +244,12 @@ Publica un artifact de cada tipo usando los fixtures de `tests/fixtures/` y espe
 - [Consumo de recursos](docs/PERFORMANCE.md)
 
 ## Limitaciones conocidas
+
+- **Ventana en sesiones remotas**: por SSH o sin entorno gráfico la ventana no puede abrirse (o se abre en la máquina remota); usa el visor de terminal. Si falla, el motivo queda en `<home>/window.log`.
+- **Foco**: Windows puede impedir que una ventana lanzada en segundo plano tome el foco del teclado; queda encima, pero a veces hay que hacer clic en ella.
+- **Markdown en la ventana**: sin imágenes embebidas y con las tablas alineadas de forma simple; los enlaces no son clicables a propósito.
+
+Del visor de terminal:
 
 - **Imágenes reales dentro de Herdr**: Herdr solo reenvía el protocolo gráfico de Kitty, y solo si el terminal exterior lo soporta. En Windows Terminal (aunque soporta Sixel) el plugin usa el fallback Unicode. Detalle en [docs/TERMINALS.md](docs/TERMINALS.md).
 - **Protocolos de imagen real no verificados visualmente**: el desarrollo se hizo en Windows Terminal, que cae al fallback. Kitty, Sixel e iTerm2 están cubiertos por una prueba de codificación, no por una comprobación en pantalla.

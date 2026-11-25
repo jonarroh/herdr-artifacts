@@ -7,7 +7,7 @@ id = "local.herdr-artifacts"
 name = "Herdr Artifacts"
 version = "0.1.0"
 min_herdr_version = "0.9.4"
-description = "Visual dashboard for agents: QR codes, images, messages, markdown, tables and charts with interactive actions, rendered natively in the terminal."
+description = "Visual dashboard for agents: QR codes, images, messages, markdown, tables and charts with interactive actions, shown in a native window."
 platforms = ["linux", "macos", "windows"]
 
 # Runs on `herdr plugin install` (GitHub installs). `herdr plugin link` does
@@ -15,27 +15,24 @@ platforms = ["linux", "macos", "windows"]
 [[build]]
 command = ["cargo", "build", "--release"]
 
-# The viewer opens as a floating popup over the current layout (q or Esc closes it).
-# Override with `herdr plugin pane open ... --placement split|tab|zoomed|overlay`.
+# Optional terminal viewer. The dashboard action below opens the native window
+# instead; these panes are only used by `herdr-artifacts open --placement
+# split|tab|zoomed|overlay`.
 [[panes]]
 id = "dashboard"
 title = "Artifacts"
 platforms = ["linux", "macos"]
-placement = "popup"
-width = "90%"
-height = "90%"
+placement = "split"
 command = ["./target/release/herdr-artifacts", "tui"]
 
 [[panes]]
 id = "dashboard-windows"
 title = "Artifacts"
 platforms = ["windows"]
-placement = "popup"
-width = "90%"
-height = "90%"
+placement = "split"
 command = ["target/release/herdr-artifacts.exe", "tui"]
 
-# Command-palette / keybinding entry that opens the pane.
+# Command-palette / keybinding entry that opens the native window.
 [[actions]]
 id = "open"
 title = "Artifacts: open dashboard"

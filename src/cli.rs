@@ -20,6 +20,7 @@ use crate::{
     app,
     config::Config,
     error::{Error, Result},
+    gui::{self, launch},
     protocol::{
         Action, ArtifactInput, ArtifactPatch, Request, Response,
         artifact::{ARTIFACT_TYPES, is_store_file_name},
@@ -30,7 +31,7 @@ use crate::{
 };
 
 #[derive(Parser)]
-#[command(name = "herdr-artifacts", version, about = "Visual, interactive artifacts for Herdr agents, rendered in the terminal")]
+#[command(name = "herdr-artifacts", version, about = "Visual, interactive artifacts for Herdr agents, shown in a native window")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Cmd>,
@@ -38,7 +39,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Cmd {
-    /// Run the viewer (default when no command is given)
+    /// Run the native window in this process (default when no command is given)
+    Window,
+    /// Run the viewer inside the terminal
     Tui,
     /// Publish an artifact: image, qr, message, markdown, table, chart, code, or json
     Publish(PublishArgs),
@@ -71,10 +74,10 @@ pub enum Cmd {
     },
     /// Show paths, limits, IPC state and detected terminal capabilities
     Doctor,
-    /// Ask Herdr to open the viewer pane
+    /// Open the viewer: a native window, or a Herdr terminal pane
     Open {
-        /// popup, overlay, split, tab or zoomed
-        #[arg(long, default_value = "popup")]
+        /// `window` is a native window; the others are Herdr terminal panes
+        #[arg(long, default_value = "window", value_parser = ["window", "split", "tab", "zoomed", "overlay"])]
         placement: String,
     },
 }
@@ -128,7 +131,7 @@ pub struct PublishArgs {
     /// Chart unit suffix, e.g. ms
     #[arg(long)]
     pub unit: Option<String>,
-    /// Pop the viewer up in Herdr if it is not already open
+    /// Open the native window, or bring it to the front
     #[arg(long)]
     pub show: bool,
     /// Chart point as label=value (repeatable)
@@ -181,23 +184,24 @@ pub fn run(cli: Cli) -> ExitCode {
 
 fn dispatch(cli: Cli) -> Result<ExitCode> {
     let cfg = Config::load()?;
-    match cli.command.unwrap_or(Cmd::Tui) {
+    match cli.command.unwrap_or(Cmd::Window) {
+        Cmd::Window => gui::run(cfg)?,
         Cmd::Tui => app::run(cfg)?,
         Cmd::Publish(args) => {
             let show = args.show;
             let input = build_input(&cfg, args)?;
             let ingested = ingested_image(&input);
-            let result = submit(&cfg, Request::Publish { artifact: input });
+            let result = deliver(&cfg, Request::Publish { artifact: input });
             if result.is_err() {
                 // Do not leave an orphan copy behind when the publish failed.
                 if let Some(name) = ingested {
                     storage::discard_file(&cfg, &name);
                 }
             }
-            // No viewer was listening: bring one up so the user sees it. A
-            // failure here (e.g. not inside Herdr) does not undo the publish.
-            if result? == "store" && show {
-                let _ = open_pane("popup", true);
+            let id = result?.id;
+            // A failure here (e.g. no display) does not undo the publish.
+            if show && let Err(e) = launch::open(&cfg, id) {
+                eprintln!("warning: published, but the window did not open: {e}");
             }
         }
         Cmd::Update(args) => {
@@ -213,15 +217,28 @@ fn dispatch(cli: Cli) -> Result<ExitCode> {
         Cmd::Events { follow, artifact } => events(&cfg, follow, artifact.as_deref())?,
         Cmd::Wait { id, timeout } => return wait(&cfg, &id, timeout),
         Cmd::Doctor => doctor(&cfg)?,
-        Cmd::Open { placement } => return open_pane(&placement, false),
+        Cmd::Open { placement } if placement == "window" => launch::open(&cfg, None)?,
+        Cmd::Open { placement } => return open_pane(&placement),
     }
     Ok(ExitCode::SUCCESS)
+}
+
+/// What happened to a delivered request.
+struct Delivery {
+    /// `"viewer"` (over IPC) or `"store"` (no viewer was running).
+    via: &'static str,
+    id: Option<String>,
 }
 
 /// Deliver a request to the viewer, or apply it to the store when no viewer
 /// is running. Prints one JSON line describing the result and returns how it
 /// was delivered: `"viewer"` or `"store"`.
 pub fn submit(cfg: &Config, request: Request) -> Result<&'static str> {
+    deliver(cfg, request).map(|d| d.via)
+}
+
+/// Like [`submit`], also returning the affected artifact's id.
+fn deliver(cfg: &Config, request: Request) -> Result<Delivery> {
     let (response, delivered) = match ipc::send(cfg, request.clone())? {
         Some(response) => (response, "viewer"),
         None => {
@@ -232,7 +249,7 @@ pub fn submit(cfg: &Config, request: Request) -> Result<&'static str> {
     match response {
         Response::Ok { id, revision } => {
             println!("{}", json!({"ok": true, "id": id, "revision": revision, "delivered": delivered}));
-            Ok(delivered)
+            Ok(Delivery { via: delivered, id })
         }
         Response::Error { code, message } => Err(match code.as_str() {
             "not_found" => Error::NotFound(message.trim_start_matches("artifact not found: ").to_string()),
@@ -547,8 +564,8 @@ fn doctor(cfg: &Config) -> Result<()> {
     Ok(())
 }
 
-/// Open the viewer pane through Herdr's own CLI.
-fn open_pane(placement: &str, quiet: bool) -> Result<ExitCode> {
+/// Open a terminal viewer pane through Herdr's own CLI.
+fn open_pane(placement: &str) -> Result<ExitCode> {
     let herdr = env::var("HERDR_BIN_PATH").unwrap_or_else(|_| "herdr".into());
     let plugin = env::var("HERDR_PLUGIN_ID").unwrap_or_else(|_| "local.herdr-artifacts".into());
     // Pane ids are per platform in the manifest (ids must be unique).
@@ -557,9 +574,6 @@ fn open_pane(placement: &str, quiet: bool) -> Result<ExitCode> {
     cmd.args(["plugin", "pane", "open", "--plugin", &plugin, "--entrypoint", entrypoint, "--placement", placement, "--focus"]);
     if placement == "split" {
         cmd.args(["--direction", "right"]);
-    }
-    if quiet {
-        cmd.stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
     }
     let status = cmd.status().map_err(|e| Error::Io(format!("could not run herdr: {e}")))?;
     Ok(if status.success() { ExitCode::SUCCESS } else { ExitCode::FAILURE })

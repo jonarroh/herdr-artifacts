@@ -32,6 +32,12 @@ pub enum Request {
     /// Patch an existing artifact.
     Update { id: String, patch: ArtifactPatch },
     Remove { id: String },
+    /// Bring the native window to the front, optionally selecting an
+    /// artifact. Viewers without a window answer with an error.
+    Show {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+    },
     Ping,
 }
 

@@ -4,7 +4,7 @@
 
 Un único binario cumple dos papeles:
 
-- **Visor** (`herdr-artifacts tui`): la TUI que Herdr ejecuta dentro de un pane.
+- **Visor**: la ventana nativa (`herdr-artifacts window`, el modo por defecto) o, si se pide, la TUI (`herdr-artifacts tui`) en un pane. Ambos son dueños del mismo socket, así que los agentes no distinguen entre ellos.
 - **CLI** (`herdr-artifacts publish …`): lo que invocan los agentes desde cualquier pane.
 
 ```text
@@ -40,7 +40,14 @@ El disco es la fuente de verdad. El IPC solo añade inmediatez: si el visor est�
 | `interaction/mod.rs` | Máquina de estados de navegación (tecla → comando) | Ninguna |
 | `interaction/actions.rs` | Ejecuta acciones y genera eventos | Disco, abrir URL |
 | `interaction/clipboard.rs` | Copiar al portapapeles | Portapapeles |
-| `app.rs` | Layout, dibujo y bucle de eventos | Terminal |
+| `app.rs` | TUI: layout, dibujo y bucle de eventos | Terminal |
+| `gui/session.rs` | Lógica de la ventana: selección, peticiones y confirmaciones (sin dibujo) | Disco |
+| `gui/view.rs` | Dibuja cada tipo de artifact con egui | Lee `files/` |
+| `gui/chrome.rs` | Cabecera, botones e historial | — |
+| `gui/size.rs` | Tamaño de ventana según el contenido | Ninguna |
+| `gui/theme.rs` | Colores y estilos, claro y oscuro | — |
+| `gui/mod.rs` | Ventana nativa y diálogos del sistema | Ventana |
+| `gui/launch.rs` | Abre la ventana como proceso independiente o la trae al frente | Procesos |
 | `cli.rs` | Argumentos y comandos para agentes | — |
 | `config.rs`, `time.rs`, `error.rs` | Rutas y límites, RFC 3339, errores con código | — |
 
@@ -55,6 +62,10 @@ Las dependencias van en un solo sentido: `protocol` no conoce a nadie; `storage`
 **Sin Tokio.** El visor no tiene concurrencia real: un hilo bloqueado en `accept` (sin CPU en reposo) y hilos efímeros por conexión que solo analizan y autentican. Las peticiones llegan por canal al hilo de UI, único dueño del almacén, así que no hay locks.
 
 **Una sola ruta de validación.** `transport::handle` es el único punto donde una petición toca el almacén, tanto si llega por IPC como si el CLI escribe en disco. Ambos caminos aplican las mismas reglas.
+
+**Confirmaciones atadas a lo que se vio.** El diálogo nativo corre fuera del hilo de UI, así que los agentes pueden seguir publicando mientras está abierto. Cada confirmación guarda el id y la revisión mostrados; si ya no coinciden, el «Sí» no ejecuta nada.
+
+**La ventana no hereda la salida del CLI.** En Windows, `launch.rs` quita la marca de herencia a stdin, stdout y stderr antes de crear el proceso. Sin esto, quien capture la salida de `publish --show` podría quedarse esperando hasta que se cerrara la ventana.
 
 **Interacción como máquina de estados pura.** `UiState::handle_key` recibe una tecla y devuelve un `Command` sin hacer E/S. Toda la navegación se prueba sin terminal.
 

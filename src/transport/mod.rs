@@ -17,11 +17,14 @@ pub enum Change {
     None,
     Upserted(String),
     Removed(String),
+    /// Nothing changed; the viewer is asked to show itself.
+    Show(Option<String>),
 }
 
 pub fn handle(repo: &mut Repository, request: Request) -> (Response, Change) {
     let result = match request {
         Request::Ping => return (Response::ok(), Change::None),
+        Request::Show { id } => return (Response::ok(), Change::Show(id)),
         Request::Publish { artifact } => repo.publish(artifact),
         Request::Update { id, patch } => repo.update(&id, patch),
         Request::Remove { id } => {

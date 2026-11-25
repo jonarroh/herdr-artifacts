@@ -149,6 +149,7 @@ Una conexión transporta una petición y una respuesta, cada una en una línea J
 | `publish` | `artifact` | Crea el artifact o reemplaza el del mismo `id` |
 | `update` | `id`, `patch` | Modifica un artifact existente |
 | `remove` | `id` | Lo borra |
+| `show` | `id` (opcional) | Trae la ventana al frente y selecciona ese artifact. El visor de terminal responde `invalid` |
 | `ping` | — | Comprueba que el visor responde |
 
 `patch` admite `title`, `description`, `status`, `content` y `actions`. `content` se fusiona superficialmente con el existente: las claves enviadas sustituyen a las anteriores y el resto se conserva. `actions` reemplaza la lista completa.

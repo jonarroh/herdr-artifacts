@@ -21,7 +21,7 @@ use ratatui::{
 
 use crate::{
     config::Config,
-    error::Result,
+    error::{Error, Result},
     interaction::{
         Command, Mode, Pending, UiState,
         actions::{self, Outcome},
@@ -213,9 +213,14 @@ impl App {
     pub fn on_ipc(&mut self, request: IpcRequest) {
         let before = self.repo.metas().len();
         let (response, change) = transport::handle(&mut self.repo, request.request);
+        // A terminal pane cannot raise itself; say so instead of pretending.
+        let response = match change {
+            Change::Show(_) => Error::invalid("the running viewer is a terminal pane, not a window").into(),
+            _ => response,
+        };
         let _ = request.reply.send(response);
         match change {
-            Change::None => return,
+            Change::None | Change::Show(_) => return,
             Change::Upserted(id) => {
                 let count = self.repo.metas().len();
                 let position = self.repo.position(&id);
