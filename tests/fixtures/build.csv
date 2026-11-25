@@ -1,0 +1,5 @@
+Step,Duration,Status
+"install, cached",2.1s,ok
+compile,38.4s,ok
+test,12.9s,ok
+"bundle ""release""",6.0s,ok

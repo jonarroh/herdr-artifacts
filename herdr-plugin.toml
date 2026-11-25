@@ -1,0 +1,45 @@
+# Herdr plugin manifest for Herdr Artifacts.
+# Format verified against Herdr 0.9.4-preview (https://herdr.dev/docs/preview/plugins/).
+# Runtime commands run with this directory as the working directory.
+# Ids must be unique per type even across platforms, hence the -windows variants.
+
+id = "local.herdr-artifacts"
+name = "Herdr Artifacts"
+version = "0.1.0"
+min_herdr_version = "0.9.4"
+description = "Visual dashboard for agents: QR codes, images, messages, markdown, tables and charts with interactive actions, rendered natively in the terminal."
+platforms = ["linux", "macos", "windows"]
+
+# Runs on `herdr plugin install` (GitHub installs). `herdr plugin link` does
+# not build: run `cargo build --release` yourself first.
+[[build]]
+command = ["cargo", "build", "--release"]
+
+# The viewer as a pane. Default placement is a split next to the active pane;
+# override with `herdr plugin pane open ... --placement tab|zoomed|overlay|popup`.
+[[panes]]
+id = "dashboard"
+title = "Artifacts"
+platforms = ["linux", "macos"]
+placement = "split"
+command = ["./target/release/herdr-artifacts", "tui"]
+
+[[panes]]
+id = "dashboard-windows"
+title = "Artifacts"
+platforms = ["windows"]
+placement = "split"
+command = ["target/release/herdr-artifacts.exe", "tui"]
+
+# Command-palette / keybinding entry that opens the pane.
+[[actions]]
+id = "open"
+title = "Artifacts: open dashboard"
+platforms = ["linux", "macos"]
+command = ["./target/release/herdr-artifacts", "open"]
+
+[[actions]]
+id = "open-windows"
+title = "Artifacts: open dashboard"
+platforms = ["windows"]
+command = ["target/release/herdr-artifacts.exe", "open"]

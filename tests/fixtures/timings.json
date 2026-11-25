@@ -1,0 +1,10 @@
+{
+  "style": "bar",
+  "unit": "s",
+  "points": [
+    { "label": "install", "value": 2.1 },
+    { "label": "compile", "value": 38.4 },
+    { "label": "test", "value": 12.9 },
+    { "label": "bundle", "value": 6 }
+  ]
+}

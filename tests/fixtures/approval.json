@@ -1,0 +1,18 @@
+{
+  "id": "deploy-approval",
+  "type": "message",
+  "title": "Deploy to production?",
+  "description": "El agente necesita tu aprobación para continuar",
+  "project_id": "my-project",
+  "agent_id": "claude",
+  "status": "pending",
+  "content": {
+    "body": "La versión 1.4.2 pasó todas las pruebas.\n¿Desplegar a producción?",
+    "level": "warning"
+  },
+  "actions": [
+    { "id": "approve", "label": "Aprobar", "type": "respond", "payload": { "env": "production" } },
+    { "id": "reject", "label": "Rechazar", "type": "respond", "confirm": true },
+    { "id": "logs", "label": "Ver logs", "type": "open_url", "payload": { "url": "http://localhost:8081/logs" } }
+  ]
+}
