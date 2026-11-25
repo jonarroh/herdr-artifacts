@@ -4,7 +4,7 @@
 //! theme, so phone cameras can read it. Two sizes are tried: 2x1 cells per
 //! module (larger, easier to scan) and half-block (1 cell = 1x2 modules).
 
-use qrcode::{Color as Module, QrCode};
+use qrcode::{Color as Module, EcLevel, QrCode};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -30,7 +30,13 @@ impl Matrix {
     }
 
     pub fn encode_with_quiet(data: &str, quiet: usize) -> Result<Self, String> {
-        let code = QrCode::new(data.as_bytes()).map_err(|e| e.to_string())?;
+        Self::encode_with(data, quiet, EcLevel::M)
+    }
+
+    /// Lower error correction gives a smaller code for the same data, which
+    /// is a fair trade on a screen (no dirt or damage to recover from).
+    pub fn encode_with(data: &str, quiet: usize, level: EcLevel) -> Result<Self, String> {
+        let code = QrCode::with_error_correction_level(data.as_bytes(), level).map_err(|e| e.to_string())?;
         let width = code.width();
         let colors = code.to_colors();
         let side = width + 2 * quiet;
@@ -61,17 +67,23 @@ pub fn render(data: &str, area: Rect, buf: &mut Buffer) {
             return;
         }
     };
-    // If the code does not fit with the preferred border, shrink the border
-    // before giving up.
-    let (cw, ch) = compact_size(matrix.side);
-    let matrix = if area.width >= cw && area.height >= ch {
-        matrix
-    } else {
-        match Matrix::encode_with_quiet(data, QUIET_TIGHT) {
-            Ok(tight) => tight,
-            Err(_) => matrix,
-        }
+    // If the code does not fit as is, try progressively smaller variants
+    // before giving up: a thinner border, then lower error correction.
+    let fits = |m: &Matrix| {
+        let (cw, ch) = compact_size(m.side);
+        area.width >= cw && area.height >= ch
     };
+    let mut matrix = matrix;
+    for (quiet, level) in [(QUIET_TIGHT, EcLevel::M), (QUIET, EcLevel::L), (QUIET_TIGHT, EcLevel::L)] {
+        if fits(&matrix) {
+            break;
+        }
+        if let Ok(smaller) = Matrix::encode_with(data, quiet, level)
+            && smaller.side <= matrix.side
+        {
+            matrix = smaller;
+        }
+    }
     let side = matrix.side as u16;
     let (cw, ch) = compact_size(matrix.side);
     // Keep one row for the caption when there is room.
@@ -179,6 +191,19 @@ mod tests {
         let text = buffer_text(&buf);
         assert!(text.contains("QR needs 27x14 cells"), "reports the smallest size that would work\n{text}");
         assert!(!text.contains('█'));
+    }
+
+    #[test]
+    fn lower_error_correction_is_used_when_the_code_is_too_tall() {
+        // 43 bytes: version 4 (33 modules) at level M, version 3 (29) at level L.
+        let url = "https://github.com/jonarroh/herdr-artifacts";
+        assert_eq!(Matrix::encode_with(url, 0, EcLevel::M).unwrap().side, 33);
+        assert_eq!(Matrix::encode_with(url, 0, EcLevel::L).unwrap().side, 29);
+        let area = Rect::new(0, 0, 45, 16);
+        let mut buf = Buffer::empty(area);
+        render(url, area, &mut buf);
+        let text = buffer_text(&buf);
+        assert!(!text.contains("QR needs") && text.contains("█"), "{text}");
     }
 
     #[test]

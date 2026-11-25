@@ -318,7 +318,7 @@ impl App {
         let area = frame.area();
         let count = self.repo.metas().len();
         let show_history = !self.ui.expanded && count > 0 && area.height >= HISTORY_MIN_HEIGHT;
-        let history_height = if show_history { (count as u16 + 2).min((area.height / 3).clamp(3, 9)) } else { 0 };
+        let history_height = if show_history { (count as u16 + 2).min((area.height / 5).clamp(3, 9)) } else { 0 };
         let [header, canvas, history, footer] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(3),
