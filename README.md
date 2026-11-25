@@ -63,7 +63,13 @@ herdr plugin pane open --plugin local.herdr-artifacts --entrypoint dashboard --f
 herdr plugin pane open --plugin local.herdr-artifacts --entrypoint dashboard-windows --focus
 ```
 
-Por defecto se abre como split junto al pane activo. Con `--placement tab`, `zoomed`, `overlay` o `popup` se cambia la ubicación.
+Por defecto se abre como **popup**: una ventana emergente al 90 % sobre el layout actual, que se cierra con `q` o `Esc`. Con `--placement split`, `tab`, `zoomed` u `overlay` se abre como pane normal.
+
+Un agente puede hacer que el popup aparezca al publicar, si el visor no está ya abierto:
+
+```sh
+herdr-artifacts publish qr --data "exp://192.168.1.100:8081" --show
+```
 
 Con un atajo de teclado, añadiendo a `config.toml` de Herdr (usa `open-windows` en Windows):
 
@@ -104,7 +110,7 @@ herdr-artifacts publish json ./artifact.json         # contrato JSON completo
 
 `delivered` indica el camino: `viewer` (entregado por IPC al panel abierto) o `store` (el panel estaba cerrado; se guardó en disco y aparecerá al abrirlo).
 
-Opciones comunes: `--id`, `--title`, `--description`, `--project`, `--agent`, `--status`, `--action`.
+Opciones comunes: `--id`, `--title`, `--description`, `--project`, `--agent`, `--status`, `--action`, `--show`.
 
 ### Actualizar y eliminar
 
@@ -161,7 +167,7 @@ Formato de `--action`: `id:etiqueta[:tipo[:url]]`. Un `!` tras el id exige confi
 | `a`, luego `←` `→` y `Enter` | Elegir y ejecutar una acción |
 | `1`–`9` | Ejecutar una acción directamente |
 | `d` | Descartar (borrar) el artifact, con confirmación |
-| `Esc` | Salir de la vista ampliada o de la barra de acciones |
+| `Esc` | Volver atrás; en el nivel superior, cerrar |
 | `?` | Ayuda |
 | `q` / `Ctrl+C` | Cerrar |
 

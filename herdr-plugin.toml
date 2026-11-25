@@ -15,20 +15,24 @@ platforms = ["linux", "macos", "windows"]
 [[build]]
 command = ["cargo", "build", "--release"]
 
-# The viewer as a pane. Default placement is a split next to the active pane;
-# override with `herdr plugin pane open ... --placement tab|zoomed|overlay|popup`.
+# The viewer opens as a floating popup over the current layout (q or Esc closes it).
+# Override with `herdr plugin pane open ... --placement split|tab|zoomed|overlay`.
 [[panes]]
 id = "dashboard"
 title = "Artifacts"
 platforms = ["linux", "macos"]
-placement = "split"
+placement = "popup"
+width = "90%"
+height = "90%"
 command = ["./target/release/herdr-artifacts", "tui"]
 
 [[panes]]
 id = "dashboard-windows"
 title = "Artifacts"
 platforms = ["windows"]
-placement = "split"
+placement = "popup"
+width = "90%"
+height = "90%"
 command = ["target/release/herdr-artifacts.exe", "tui"]
 
 # Command-palette / keybinding entry that opens the pane.

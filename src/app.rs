@@ -36,7 +36,7 @@ use crate::{
 };
 
 /// Two cards side by side need at least this many columns.
-const TWO_COLUMN_MIN_WIDTH: u16 = 90;
+const TWO_COLUMN_MIN_WIDTH: u16 = 80;
 /// The history panel is hidden on very short terminals.
 const HISTORY_MIN_HEIGHT: u16 = 16;
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -533,10 +533,9 @@ impl App {
         }
         let keys: &[(&str, &str)] = match self.ui.mode {
             Mode::Browse if self.ui.expanded => {
-                &[("Tab", "Next"), ("PgUp/PgDn", "Scroll"), ("c", "Copy"), ("a", "Actions"), ("Esc", "Back"), ("q", "Close")]
-            }
+                &[("Tab", "Next"), ("PgUp/PgDn", "Scroll"), ("c", "Copy"), ("a", "Actions"), ("Esc", "Back"), ("q", "Close")]            }
             Mode::Browse => {
-                &[("Tab", "Navigate"), ("Enter", "Expand"), ("c", "Copy"), ("a/1-9", "Actions"), ("d", "Dismiss"), ("?", "Help"), ("q", "Close")]
+                &[("Tab", "Navigate"), ("Enter", "Expand"), ("c", "Copy"), ("a/1-9", "Actions"), ("d", "Dismiss"), ("?", "Help"), ("q/Esc", "Close")]
             }
             Mode::Actions => &[("←/→", "Choose"), ("Enter", "Run"), ("Esc", "Back")],
             Mode::Confirm(_) => &[("y", "Confirm"), ("n", "Cancel")],
@@ -588,7 +587,7 @@ fn draw_help(frame: &mut Frame, area: Rect) {
         ("a, then ←/→ Enter", "choose and run an action"),
         ("1-9", "run an action directly"),
         ("d", "dismiss (delete) the artifact"),
-        ("Esc", "leave the expanded view or action bar"),
+        ("Esc", "go back; at the top level, close"),
         ("q / Ctrl+C", "close"),
     ];
     let lines: Vec<Line> = rows

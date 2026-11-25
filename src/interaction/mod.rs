@@ -96,6 +96,8 @@ impl UiState {
                 self.expanded = false;
                 Command::Redraw
             }
+            // With nothing left to back out of, Esc closes the popup.
+            KeyCode::Esc => Command::Quit,
             KeyCode::Tab | KeyCode::Down | KeyCode::Char('j') => self.move_by(1, count),
             KeyCode::BackTab | KeyCode::Up | KeyCode::Char('k') => self.move_by(-1, count),
             KeyCode::Home | KeyCode::Char('g') => self.select(0, count),
@@ -258,7 +260,7 @@ mod tests {
         assert!(ui.expanded, "expanded view follows the selection");
         ui.handle_key(key(KeyCode::Esc), 2, &[]);
         assert!(!ui.expanded);
-        assert_eq!(ui.handle_key(key(KeyCode::Esc), 2, &[]), Command::None, "esc never quits");
+        assert_eq!(ui.handle_key(key(KeyCode::Esc), 2, &[]), Command::Quit, "at the top level esc closes the popup");
         assert_eq!(ui.handle_key(ch('q'), 2, &[]), Command::Quit);
     }
 
